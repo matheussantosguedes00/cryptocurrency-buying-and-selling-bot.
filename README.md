@@ -1,13 +1,4 @@
-# 🚀 Cryptocurrency Buying and Selling Bot - SOL/USDT
-
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/) [![Flask](https://img.shields.io/badge/Flask-2.0+-green.svg)](https://flask.palletsprojects.com/) [![Binance](https://img.shields.io/badge/Binance-API-yellow.svg)](https://github.com/sammchardy/python-binance) [![License](https://img.shields.io/badge/License-MIT-red.svg)](LICENSE)
-
-> **Professional algorithmic trading bot** with RSI + Moving Average crossover strategy, built with Flask and Binance API. Features real-time monitoring, automatic take-profit/stop-loss, and web-based dashboard.
-Expandir
-bot.md
-6 KB
-﻿
-# 🚀 Cryptocurrency Buying and Selling Bot - SOL/USDT
+﻿# 🚀 Cryptocurrency Buying and Selling Bot - SOL/USDT
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/) [![Flask](https://img.shields.io/badge/Flask-2.0+-green.svg)](https://flask.palletsprojects.com/) [![Binance](https://img.shields.io/badge/Binance-API-yellow.svg)](https://github.com/sammchardy/python-binance) [![License](https://img.shields.io/badge/License-MIT-red.svg)](LICENSE)
 
