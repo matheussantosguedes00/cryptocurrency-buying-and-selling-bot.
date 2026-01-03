@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8" />
+<title>Bot PRO - SOL/USDT</title>
+<style>
+body { background:#0b0f14; color:#e6eef6; font-family: Arial, sans-serif; padding:20px; }
+.header { display:flex; gap:20px; align-items:center; }
+.btn { padding:10px 16px; border-radius:8px; border:none; cursor:pointer; font-weight:bold; }
+.btn-on { background:#00d27a; color:#001; }
+.btn-off { background:#ff6b6b; color:white; }
+.card { background:#0f1720; padding:16px; border-radius:10px; margin-top:12px; }
+.row { display:flex; gap:12px; }
+.col { flex:1; }
+.table { width:100%; border-collapse:collapse; margin-top:8px; }
+.table th, .table td { padding:8px; border-bottom:1px solid #1f2933; text-align:center; }
+.success { color:#00ff95; }
+.err { color:#ff7b7b; }
+.small { font-size:13px; color:#9fb0c8; }
+.indicator { font-weight:bold; padding:6px 10px; border-radius:6px; display:inline-block; }
+.ind-buy { background:#083d1f; color:#00ff95; }
+.ind-sell { background:#3a0b0b; color:#ff7b7b; }
+.ind-neutral { background:#2f2b22; color:#f0c419; }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <h1>BOT PRO • SOL/USDT</h1>
+        <div class="small">Estratégia: MA9/MA21 + RSI(14) • Take +3% • Stop -2% • Usa 100% USDT</div>
+    </div>
+
+    <div style="margin-left:auto">
+        <button id="btnAtivar" class="btn btn-on" onclick="ativar()">Ativar</button>
+        <button id="btnDesativar" class="btn btn-off" onclick="desativar()">Desativar</button>
+        <div id="statusBox" style="margin-top:8px"></div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col card">
+        <h3>Mercado</h3>
+        <div>Preço atual: <span id="preco">-</span> USDT</div>
+        <div>MA9: <span id="ma9">-</span> | MA21: <span id="ma21">-</span> | RSI14: <span id="rsi">-</span></div>
+        <div style="margin-top:8px">Sinal: <span id="sinal" class="indicator ind-neutral">—</span></div>
+    </div>
+
+    <div class="col card">
+        <h3>Saldo</h3>
+        <div>SOL: <span id="saldo_sol">-</span></div>
+        <div>USDT: <span id="saldo_usdt">-</span></div>
+
+        <h4 style="margin-top:12px">Posições Abertas</h4>
+        <table class="table">
+            <thead><tr><th>Entry</th><th>Qty</th><th>Take</th><th>Stop</th></tr></thead>
+            <tbody id="positions_tbody"></tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Histórico de Ordens</h3>
+    <table class="table">
+        <thead><tr><th>Tipo</th><th>Preço</th><th>Qty</th><th>Hora</th></tr></thead>
+        <tbody id="hist_tbody"></tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h3>Erros / Falhas</h3>
+    <table class="table">
+        <thead><tr><th>Tipo</th><th>Mensagem</th></tr></thead>
+        <tbody id="err_tbody"></tbody>
+    </table>
+</div>
+
+<script>
+// ---------- helper ----------
+function humanTime(ts){
+    if(!ts) return "-";
+    let d = new Date(ts*1000);
+    return d.toLocaleString();
+}
+
+// ---------- API calls ----------
+async function ativar(){
+    await fetch("/bot/ativar", {method:"POST"});
+}
+
+async function desativar(){
+    await fetch("/bot/desativar", {method:"POST"});
+}
+
+async function fetchStatus(){
+    const r = await fetch("/bot_status");
+    return r.json();
+}
+
+async function fetchPreco(){
+    const r = await fetch("/preco/SOLUSDT");
+    return r.json();
+}
+
+async function fetchSaldo(){
+    const r = await fetch("/saldo");
+    return r.json();
+}
+
+async function fetchHist(){
+    const r = await fetch("/historico");
+    return r.json();
+}
+
+async function fetchErr(){
+    const r = await fetch("/erros");
+    return r.json();
+}
+
+async function fetchPositions(){
+    const r = await fetch("/positions");
+    return r.json();
+}
+
+// ---------- UI update ----------
+async function updateUI(){
+    try{
+        const status = await fetchStatus();
+        const priceObj = await fetchPreco();
+        const saldo = await fetchSaldo();
+        const hist = await fetchHist();
+        const errs = await fetchErr();
+        const pos = await fetchPositions();
+
+        // status
+        const st = document.getElementById("statusBox");
+        if(status.ativo){
+            st.innerHTML = '<span style="background:#00ff95;color:#001;padding:6px 10px;border-radius:6px">BOT ATIVADO</span>';
+        } else {
+            st.innerHTML = '<span style="background:#ff7b7b;color:#200;padding:6px 10px;border-radius:6px">BOT DESATIVADO</span>';
+        }
+
+        // price + indicators (server returns price, but indicators on server computed from klines; we can request them by calling /preco which returns price only — we compute indicators client-side by requesting klines? To keep simple, server computes but exposes only price; we'll display price and approximate indicators by fetching klines through /preco or rely on server's positions metadata. For now, show price.)
+        const price = parseFloat(priceObj.price || priceObj);
+        document.getElementById("preco").innerText = price.toFixed(6);
+
+        // try fetch indicators indirectly from positions/hist? We'll compute quick indicators using a small /klines endpoint if necessary. For now, we show RSI/MA placeholders as server computes and stores in errors/hist when actions happen.
+        // saldo
+        document.getElementById("saldo_sol").innerText = saldo.SOL.free;
+        document.getElementById("saldo_usdt").innerText = saldo.USDT.free;
+
+        // positions
+        let pos_html = "";
+        pos.forEach(p => {
+            pos_html += `<tr>
+                <td>${Number(p.entry_price).toFixed(6)}</td>
+                <td>${Number(p.quantity).toFixed(6)}</td>
+                <td>${Number(p.take_price).toFixed(6)}</td>
+                <td>${Number(p.stop_price).toFixed(6)}</td>
+            </tr>`;
+        });
+        document.getElementById("positions_tbody").innerHTML = pos_html;
+
+        // history
+        let hhtml = "";
+        hist.slice().reverse().forEach(h => {
+            hhtml += `<tr>
+                <td>${h.action}</td>
+                <td>${Number(h.price || 0).toFixed(6)}</td>
+                <td>${Number(h.qty || h.quantidade || 0).toFixed(6)}</td>
+                <td>${humanTime(h.time)}</td>
+            </tr>`;
+        });
+        document.getElementById("hist_tbody").innerHTML = hhtml;
+
+        // errors
+        let ehtml = "";
+        errs.slice().reverse().forEach(e => {
+            if(e.type) ehtml += `<tr class="err"><td>${e.type}</td><td>${(e.error || e.erro || JSON.stringify(e)).toString()}</td></tr>`;
+            else ehtml += `<tr class="err"><td>${e.tipo || "?"}</td><td>${(e.error || e.erro || JSON.stringify(e)).toString()}</td></tr>`;
+        });
+        document.getElementById("err_tbody").innerHTML = ehtml;
+
+        // simple signal: if positions empty and last hist action BUY not present, we show neutral, else set accordingly
+        const sinalEl = document.getElementById("sinal");
+        if(pos.length > 0) {
+            sinalEl.className = "indicator ind-sell";
+            sinalEl.innerText = "POSIÇÃO ABERTA (aguardando take/stop)";
+        } else {
+            sinalEl.className = "indicator ind-neutral";
+            sinalEl.innerText = "Aguardando sinal";
+        }
+
+    }catch(err){
+        console.error("Erro updateUI", err);
+    }
+}
+
+// run update loop
+setInterval(updateUI, 3000);
+updateUI();
+</script>
+
+</body>
+</html>
